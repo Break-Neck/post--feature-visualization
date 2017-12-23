@@ -40,13 +40,13 @@
 
 
 <d-title style="contain: style; overflow: visible;">
-  <h1>Feature Visualization</h1>
-  <p style="grid-column: text;">How neural networks build up their understanding of images</p>
+  <h1>Визуализация признаков</h1>
+  <p style="grid-column: text;">Как нейронные сети выстраивают свое понимание изображений</p>
   <figure class="base-grid">
     <div style="grid-column: screen; padding-left: 16px; padding-right: 16px;" id="googlenet-examples"></div>
     <figcaption style="grid-column: text;">
-      Feature visualization allows us to see how GoogLeNet<d-cite key="szegedy2015going"></d-cite>, trained on the ImageNet<d-cite key="deng2009imagenet"></d-cite> dataset, builds up its understanding of images over many layers.
-      Visualizations of all channels are available in the <a href="appendix/">appendix</a>.
+      Представление признаков позволяет увидель, как GoogLeNet<d-cite key="szegedy2015going"></d-cite>, обученная на датасете ImageNet<d-cite key="deng2009imagenet"></d-cite> строит свое понимание изображений с каждым новым слоем.
+      Визуализации всех каналов доступна в <a href="appendix/">приложении</a>.
     </figcaption>
   </figure>
 </d-title>
@@ -54,9 +54,9 @@
 <d-article>
   
 <p>
-  There is a growing sense that neural networks need to be interpretable to humans.
-  The field of neural network interpretability has formed in response to these concerns.
-  As it matures, two major threads of research have begun to coalesce: feature visualization and attribution.
+  Все острее встает проблема интерпретации нейронных сетей людьми, решение этой проблемы
+  привело к развитию такого направления, как интерпретация нейронных сетей.
+  С его развитием, начали сливаться два направления исследования: визуализация признаков (<translate-original>feature visualisation</translate-original>) и атрибутивность (<translate-original>attribution</translate-original>).
 </p>
 
 
@@ -67,7 +67,7 @@
       <img src="images/objectives/channel.png">
     </div>
     <figcaption>
-      <strong>Feature visualization</strong> answers questions about what a network -- or parts of a network -- are looking for by generating examples.
+      <strong>Визуализация признаков</strong> отвечает на вопросы о том, на что нейронная сеть (или ее части) "смотрит", генерируя примеры.
     </figcaption>
   </div>
   <div>
@@ -76,21 +76,20 @@
       <img src="images/attribution-2.jpg" style/>
     </div>
     <figcaption>
-    <strong>Attribution</strong>
+    <strong>Атрибутивность</strong>
       <d-footnote>
-        As a young field, neural network interpretability does not yet have standardized terminology. 
-        Attribution has gone under many different names in the literature -- including "feature visualization"! -- but recent work seems to prefer terms like "attribution" and "saliency maps".
+        Как это часто бывает с молодой областью, интерпретация нейронных сетей не имеет устоявшейся терминологии.
+        Атрибутивность имела много других названий -- включая "визуализация признаков"! -- но последние работы склонны использовать такие термины как "атрибутивность" и "области внимания" (<translate-original>"saliency maps"</translate-original>).
       </d-footnote>
-    studies what part of an example is responsible for the network activating a particular way.
+    изучает, какая часть примера отвечает за определенные отклики в сети.
     </figcaption>
   </div>
 </figure>
 
 <p>
-  This article focuses on feature visualization. 
-  While feature visualization is a powerful tool, actually getting it to work involves a number of details. 
-  In this article, we examine the major issues and explore common approaches to solving them.
-  We find that remarkably simple methods can produce high-quality visualizations. Along the way we introduce a few tricks for exploring variation in what neurons react to, how they interact, and how to improve the optimization process.
+  В данной статье рассказывается о визуализации признаков.
+  Несмотря на то, что это мощная техника, ее использование требует учета некоторых деталей.
+  В этой статье мы рассмотрим главные проблемы и изучим основные способы их решения, получив достаточно простыми методами качественную визуализацию. Будут показаны способы исследования изменений в том, на что реагируют нейроны, как они взаимодействуют, и как улучшить процесс оптимизации.
 </p>
 
 <!-- 
@@ -108,31 +107,30 @@
 
 <hr />
 <!-- =================================================== -->
-<h2 id="optimization">Feature Visualization by Optimization</h2>
+<h2 id="optimization">Визуализация признаков через Оптимизацию</h2>
 
 <p>
-  Neural networks are, generally speaking, differentiable with respect to their inputs.
-  If we want to find out what kind of input would cause a certain behavior
-  -- whether that’s an internal neuron firing or the final output behavior --
-  we can use derivatives to iteratively tweak the input
-  towards that goal <d-cite key="erhan2009visualizing"></d-cite>.
+  Нейронные сети, вообще говоря, дифиренцируемы по их входным параметрам.
+  Если мы хотим выявить, что нужно подать на вход, чтобы вызвать определенный отклик (неважно,
+  для внутреннего нейрона, или для конечного выхода сети), мы можем использовать производные, чтобы интерактивно менять вход, пока не достигнем цели <d-cite key="erhan2009visualizing"></d-cite>.
 </p>
 
 <figure class="base-grid" style="min-height: 168px;">
-  <figcaption style="grid-column: kicker;">Starting from random noise, we optimize an image to activate a particular neuron (layer mixed4a, unit 11).</figcaption>
+  <figcaption style="grid-column: kicker;">Начиная со случайного шума, мы оптимизируем изображение, чтобы активировать нужный нейрон (слой mixed4a, объект 11).</figcaption>
   <d-figure id="opt-progress" style="grid-column: text;"></d-figure>
 </figure>
 
 <p>
-  While conceptually simple, there are subtle challenges in getting the optimization to work. We will explore them, as well as common approaches to tackle them in the section "<a href="#enemy-of-feature-vis">The Enemy of Feature Visualization</a>".
+  Несмотря на идейную простоту, в данном подходе есть некоторые тонкие моменты, которые необходимо учесть для корректной работы.
+  Мы рассмотрим их, вместе с распространенными подходами к решению, в части "<a href="#enemy-of-feature-vis">Враг визуализации признаков</a>".
 </p>
 
-<h3 id="optimization-objectives">Optimization Objectives</h3>
+<h3 id="optimization-objectives">Цели оптимизации</h3>
 
 <p>
-  What do we want examples of?
-  This is the core question in working with examples, regardless of whether we're searching through a dataset to find the examples, or optimizing images to create them from scratch.
-  We have a wide variety of options in what we search for:
+  Примеров чего нам хочется?
+  Это главный вопрос в работе с примерами, независимо от того, просматриваем ли мы датасет в поисках примеров, или оптимизируем изображения, чтобы создать их с нуля.
+  Есть большое множество вариантов для поиска:
 </p>
 
 <figure class="base-grid" id="optimization-objectives">
@@ -178,12 +176,12 @@
   </style>
   
   <figcaption style="grid-column: kicker;">
-    <p>Different <strong>optimization objectives</strong> show what different parts of a network are looking for.</p>
+    <p>Различные <strong>цели оптимизации(<translate-original>optimization objectives</translate-original>)</strong> показывают, на что нацелены разные части сети.</p>
     <br>
-    <p><code><strong>n</strong></code> layer index <br />
-      <code><strong>x,y</strong></code> spatial position<br />
-      <code><strong>z</strong></code> channel index <br />
-      <code><strong>k</strong></code> class index</p>
+    <p><code><strong>n</strong></code> номер слоя <br />
+      <code><strong>x,y</strong></code> позиция в пространстве<br />
+      <code><strong>z</strong></code> номер канала <br />
+      <code><strong>k</strong></code> класс</p>
   </figcaption>
   
   <div class="objectives grid">
@@ -230,12 +228,12 @@
 </figure>
 
 <p>
-  If we want to understand individual features, we can search for examples where they have high values -- either for a <em>neuron</em> at an individual position, or for an entire <em>channel</em>.
-  We used the channel objective to create most of the images in this article.
+  Если мы хотим понять отдельные признаки, мы можем поискать примеры, где они имеют высокие значения, для <em>нейрона</em> ли, или всего <em>канала</em>.
+  Мы использовали канальную цель оптимизации для создания большинства изображений в этой статье.
 </p>
     
 <p>
-  If we want to understand a <em>layer</em> as a whole, we can use the DeepDream objective <d-cite key="mordvintsev2015inceptionism"></d-cite>, searching for images the layer finds "interesting."
+  Если мы хотим понять <em>слой</em> целиком, мы можем использовать цель "DeepDream" <d-cite key="mordvintsev2015inceptionism"></d-cite>, ища изображения, которые сеть признает "интересными".
 </p>
 <!-- <p>
   And if we want to create examples of output classes from a classifier, we have two options -- optimizing <em>class logits</em> before the softmax or optimizing <em>class probabilities</em> after the softmax.
@@ -248,37 +246,38 @@
 </p> -->
 
 <p>
-  And if we want to create examples of output classes from a classifier, we have two options -- optimizing <em>class logits</em> before the softmax or optimizing <em>class probabilities</em> after the softmax.
-  One can see the logits as the evidence for each class, and the probabilities as the likelihood of each class given the evidence.
-  Unfortunately, the easiest way to increase the probability softmax gives to a class is often to make the alternatives unlikely rather than to make the class of interest likely <d-cite key="simonyan2013deep"></d-cite>.
-  From our experience, optimizing pre-softmax logits produces images of better visual quality.
+  Если в случае классификации мы хотим создать примеры для каждого выходного класса, у нас есть 2 выбора: оптимизировать вход или выход <em>softmax</em> слоя. Вход можно рассматривать,
+  как признаки каждого класса, а вероятности как правдоподобие каждого класса при условии заданных значений признаков.
+  К сожалению, простейший способ увеличить вероятность, приписываемую классу через <em>softmax</em> это зачатую сделать другие классы "почти невозможными", вместо того, чтобы увеличить собственно, целевое правдоподобие <d-cite key="simonyan2013deep"></d-cite>.
+  По нашему опыту, оптимизация входа <em>softmax</em> слоя дает более привлекательные визуально изображения.
   <d-footnote>
-    While the standard explanation is that maximizing probability doesn't work very well because you can just push down evidence for other classes, an alternate hypothesis is that it's just harder to optimize through the softmax function. We understand this has sometimes been an issue in adversarial examples, and the solution is to optimize the LogSumExp of the logits instead. This is equivalent to optimizing softmax but generally more tractable. Our experience was that the LogSumExp trick doesn't seem better than dealing with the raw probabilities.
+    Несмотря на то, что стандартное объяснение говорит, что максимизация правддоподобия
+    не работает, та как можно просто уменьшить правдоподобие других классов, есть альтернативное объяснение, что такая оптимизация на самом деле сложнее. Мы понимаем,
+    что такое действительно случалось в некоторых конкурсах, и что существует решение, состоящее в оптимизации логарифма суммы экспонент входа <em>softmax</em> слоя. Это заменяет задачу на эквивалентную, но в общем случае более простую. На нашем опыте, такой переход не давал преимуществ в сравнении с работой с чистыми вероятностями.
     <br />
     <br />
-    Regardless of why that happens, it can be fixed by very strong regularization with generative models. In this case the probabilities can be a very principled thing to optimize.
+    Независимо от причин, это можно исправить, используя очень сильную регуляризацию. В таком случае, вероятности могут быть сложнооптимизируемыми.
   </d-footnote>
 </p>
 
 <p>
-  The objectives we've mentioned only scratch the surface of possible objectives -- there are a lot more that one could try.
-  Of particular note are the objectives used in style transfer <d-cite key="gatys2015neural"></d-cite>, which can teach us about the kinds of style and content a network understands,
-  and objectives used in optimization-based model inversion <d-cite key="mahendran2015understanding"></d-cite>, which help us understand what information a model keeps and what it throws away.
-  We are only at the beginning of understanding which objectives are interesting, and there is a lot of room for more work in this area.
+  Упомянутые целевые функции это только вершина айсберга -- их существует боьше, чем кто-то может испробовать за раз.
+  Стоят упоминания также целевые функции, используемые в переносе стилей <d-cite key="gatys2015neural"></d-cite>, которые показывают различные виды стилей и содержимого, выучиваемого нейроннойсетью; используемые в инверсии модели на основе оптимизации <d-cite key="mahendran2015understanding"></d-cite>, которая помогает увидеть запоминаемую и отбрасываемую моделью информацию.
+  Мы находимся только в начале пути к пониманию, какие целевые функции заслуживают внимания, в этой области большой простор для исследований.
 </p>
 
-<h3 id="why-optimization">Why visualize by optimization?</h3>
+<h3 id="why-optimization">Зачем визуализировать используя оптимизацию?</h3>
 
 <p>
-  Optimization can give us an example input that causes the desired behavior
-  -- but why bother with that?
-  Couldn't we just look through the dataset for examples that cause the desired behavior?
+  Оптимизация может дать нам пример ввода, который вызывает желаемое поведение
+  - Но зачем это надо?
+  Не могли бы мы просто просмотреть набор данных для примеров, которые вызывают желаемое поведение?
 </p>
 
 <p>
-  It turns out that optimization approach can be a powerful way to understand what a model is really looking for,
-  because it separates the things causing behavior from things that merely correlate with the causes.
-  For example, consider the following neurons visualized with dataset examples and optimization:
+  Оказывается, такой подход позволяет понять, что действительно ищет модель,
+  потому что он отделяет вещи, вызывающие интересующие нас отклики, от вещей, которые просто коррелируют с причинами.
+  Например, рассмотрим следующие нейроны, визуализированные с примерами данных и оптимизацией:
 </p>
 
 <figure style="grid-column: screen;">
@@ -286,35 +285,32 @@
 </figure>
 
 <p>
-  Optimization also has the advantage of flexibility.
-  For example, if we want to study how neurons jointly represent information,
-  we can easily ask how a particular example would need to be different for an additional neuron to activate.
-  This flexibility can also be helpful in visualizing how features evolve as the network trains.
-  If we were limited to understanding the model on the fixed examples in our dataset, topics like these ones would be much harder to explore.
+  Оптимизация также является гибким подходом.
+  Например, если мы хотим изучить, как нейроны совместно представляют информацию,
+  мы можем легко узнать, как надо изменить отдельный, чтобы получить отклик дополнительного нейрона.
+  Эта гибкость также может быть полезной при визуализации того, как функции меняются по мере прохождения сети.
+  Если бы мы ограничились пониманием работы модели на фиксированных примерах, темы, подобные этим, были бы намного сложнее исследовать.
 </p>
 
 <p>
-  On the other hand, there are also significant challenges to visualizing features with optimization.
-  In the following sections we'll examine techniques to get diverse visualizations, understand how neurons interact, and avoid high frequency artifacts.
+  С другой стороны, есть также серьезные проблемы с визуализацией признаков оптимизацией. В следующих разделах мы рассмотрим методы для получения разнообразных визуализаций, понимания взаимодействия нейронов и предотвращения высокочастотных артефактов.
 </p>
 
 
 <!-- =================================================== -->
 <hr/>
-<h2 id="diversity">Diversity</h2>
+<h2 id="diversity">Разнообразие</h2>
 
 <!-- TODO: improve las sentence -->
 <p>
-  Do our examples show us the full picture? 
-  When we create examples by optimization, this is something we need to be very careful of.
-  It's entirely possible for genuine examples to still mislead us by only showing us one "facet" of what a feature represents.
+  Показывают ли наши примеры полную картину?
+  Когда мы создаем примеры с помощью оптимизации, нужно быть очень осторожными. Вполне возможно, что настоящие примеры по-прежнему вводят нас в заблуждение, только показывая нам одну «грань» того, что представляет собой признак.
 </p>
 
 <p>
-  Dataset examples have a big advantage here.
-  By looking through our dataset, we can find diverse examples.
-  It doesn't just give us ones activating a neuron intensely:
-  we can look across a whole spectrum of activations to see what activates the neuron to different extents.
+  Рассмотрение датасетов целиком имеет большое преимущество.
+  Просматривая наши данные, можно найти разнообразные примеры.
+  Это не просто позволяет нам интенсивно активировать нейрон: мы можем посмотреть на весь спектр, чтобы узнать, что активирует нейрон в разной степени.
 </p>
 
 <!-- <figure class="l-page-outset"><img src="images/vis_ActivationSpectrum.svg" style="min-height: 150px;"></img></figure> -->
@@ -333,187 +329,188 @@
   <img class="column" src="https://cnsviewer2.corp.google.com/cns/in-d/home/ludwigschubert/visualize_channels/diagrams/mixed4a-00492/4-max.jpg">
 </figure> -->
 <p>
-  In contrast, optimization generally gives us just one extremely positive example -- and if we're creative, a very negative example as well. 
-  Is there some way that optimization could also give us this diversity?
+  Напротив, оптимизация, как правило, дает нам только один "экстремальный"
+  позитивный пример - и, если постараться, экстремальный негативный.
+  Есть ли способ, получить такое же разнообразие оптимизацией?
 </p>
 
-<h3 id="diversity-with-optimization">Achieving Diversity with Optimization</h3>
+<h3 id="diversity-with-optimization">Достижение разнообразия используя оптимизационный подход</h3>
 
 <p>
-  A given feature of a network may respond to a wide range of inputs. 
-  On the class level, for example, a classifier that has been trained to recognize dogs should recognize both closeups of their faces as well as wider profile images -- even though those have quite different visual appearances.
-  Early work by <d-cite key="mneuron2015">Wei <i>et al.</i></d-cite> attempts to demonstrate this "intra-class" diversity by recording activations over the entire training set, clustering them and optimizing for the cluster centroids, revealing the different facets of a class that were learned.
-</p>
-
-<p>
-  A different approach by Nguyen, Yosinski, and collaborators was to search through the dataset for diverse examples and use those as starting points for the optimization process <d-cite key="nguyen2016multifaceted"></d-cite>.
-  The idea is that this initiates optimization in different facets of the feature so that the resulting example from optimization will demonstrate that facet.
-  In more recent work, they combine visualizing classes with a generative model, which they can sample for diverse examples <d-cite key="nguyen2016plug"></d-cite>.
-  Their first approach had limited success, and while the generative model approach works very well -- we'll discuss it more in the section on regularization under <a href="#learned-priors">learned priors</a> -- it can be a bit tricky. 
+  Отдельная часть сети может реагировать на широкий диапазон входных данных. Например, на уровне класса классификатор, который был обучен распознавать собак, должен распознавать как крупным планом лица, так и более широкие изображения профиля, даже если они выглядят совершенно по-разному.
+  Ранняя работа <d-cite key="mneuron2015">Вей <i>и др.</i></d-cite> пытается продемонстрировать внутриклассовое разнообразие, записывая отклики по всем датасету, кластеризуя их и оптимизируя для центроидов кластера, раскрывая различные найденные свойства класса.
 </p>
 
 <p>
-  We find there's a very simple way to achieve diversity: adding a "diversity term"
+  Другой подход Нгуен, Йосински и соавторов заключался в поиске набора данных для различных примеров и использовании их в качестве отправных точек для процесса оптимизации <d-cite key="nguyen2016multifaceted"></d-cite>.
+  Идея состоит в том, что это инициирует оптимизацию в разных аспектах, так что полученный в результате пример продемонстрирует эту грань. В более поздней работе они сочетают визуализацию классов с генеративной моделью, которую можно отбирать для различных примеров <d-cite key="nguyen2016plug"></d-cite>.
+  Их первый подход имел ограниченный успех, и в то время как генеративный подход к модели работает очень хорошо - мы обсудим его более подробно в разделе о регуляризации в <a href="#learned-priors">изученных предпосылках</a> - это может быть немного сложно.
+</p>
+
+<p>
+  Cуществует очень простой способ добиться разнообразия: добавление члена, отвечающего за это
   <d-footnote>
-      For this article we use an approach based on ideas from artistic style transfer. Following that work, we begin by computing the Gram matrix <d-math>G</d-math> of the channels, where:
+      В данной статье мы используем подход, основанный на идеях переноса стиля.
+      Согласно данной работе, мы начинаем с вычисления матрицы Грамма <d-math>G</d-math> каналов, где:
       <d-math block>
         G_{i,j} = \text{layer}_n\text{[:, :, i]} \cdot \text{layer}_n\text{[:, :, j]}
       </d-math>
-      From this, we compute the diveristy term: the negative pairwise cosine similarity of pairs of visualizations.
+      После этого, мы вычисляем член, отвечающий за разнообразие: инвертированную косинусную меру близости пар представлений.
       <d-math block>
         C_{\text{diversity}} = - \sum_{a} \sum_{b\neq a} ~ \frac{\text{vec}(G_a) \cdot \text{vec}(G_b)}{||\text{vec}(G_a)||~||\text{vec}(G_b)||} 
       </d-math>
-      We then maximize the diversity term jointly with the regular optimization objective.
-    </d-footnote> to one's objective that pushes multiple examples to be different from each other.
-  The diversity term can take a variety of forms, and we don't have much understanding of their benefits yet.
-  One possibility is to penalize the cosine similarity of different examples.
-  Another is to use ideas from style transfer <d-cite key="gatys2015neural"></d-cite> to force the feature to be displayed in different styles.
+    После этого мы максимизируем данный член вместе с другими стандартными целевыми функциями.
+  </d-footnote>  в формулу, учитывая в нем, насколько отличаются разные примеры.
+  Это слагаемое может принимать много различных видов, и мы не можем однозначно указать все их премущества.
+  Один из вариантов -- штрафовать косинусную меру близости различных примеров.
+  Другой -- использовать идеи из переноса стилей, принуждая отображение признаков в различных стилях.
 </p>
 
 <p>
-  In lower level neurons, a diversity term can reveal the different facets a feature represents:
+  В нейронах нижнего уровня разнообразие может выявить различные грани, которые представляет собой функция:
 </p>
 
 <figure class="grid l-page" style="grid-template-columns: repeat(6, 1fr)">
   <div style="">
     <img style="max-width: 147px;" src="images/diversity/mixed4a_97_optimized.png" />
-    <figcaption>Simple Optimization</figcaption>
+    <figcaption>Простая оптимизация</figcaption>
   </div>
   <div style="grid-column-end: span 4">
     <img src="images/diversity/mixed4a_97_diversity.png" />
     <figcaption>
-      Optimization with diversity reveals four different, curvy facets. <i>Layer mixed4a, Unit 97</i>
+      Оптимизация с разнообразием, выявляющим четыре различных грани. <i>Слой mixed4a, объект 97</i>
     </figcaption>
   </div>
   <div style="">
     <img style="max-width: 147px;"src="images/diversity/mixed4a_97_examples.jpg" />
-    <figcaption>Dataset examples</figcaption>
+    <figcaption>Приметы датасета</figcaption>
   </div>
 </figure>
 
 
 <p>
-  Diverse feature visualizations allow us to more closely pinpoint what activates a neuron, to the degree that we can make, and -- by looking at dataset examples -- <em>check</em> predictions about what inputs will activate the neuron.
+  Различные визуализации признаков позволяют нам более точно определить, что активирует нейрон, позволяя, смотря на примеры из датасета, проверять гипотезы о том, какие входы будут активировать нейрон.
 </p>
 <p>
-  For example, let's examine this simple optimization result. 
+  Например, рассмотрим этот результат простой оптимизации.
 </p>
 
 <p>  
   <span style="display: block; float: left; width: 147px; margin-right: 1em; margin-bottom: 0.5em; margin-top: 3px">
     <img src="images/diversity/mixed4a_143_optimized.png" />
-    <span class="figcaption">Simple optimization</span>
+    <span class="figcaption">Простая оптимизация</span>
   </span>
-  Looking at it in isolation one might infer that this neuron activates on the top of dog heads, as the optimization shows both eyes and only downward curved edges.
-  Looking at the optimization with diversity however, we see optimization results which don't include eyes, and also one which includes upward curved edges. We thus have to broaden our expectation of what this neuron activates on to be mostly about the fur texture. Checking this hypothesis against dataset examples shows that is broadly correct. Note the spoon with a texture and color similar enough to dog fur for the neuron to activate.
+  Глядя только на него, можно предположить, что этот нейрон активируется на вершине головы собаки, так как оптимизация показывает как глаза, так и нижние края.
+  Однако, глядя на оптимизацию с учетом разнообразия, мы видим результаты оптимизации, которые не включают в себя глаза, а также один, который включает в себя изогнутые вверх края. Таким образом, мы должны расширить наше ожидание того, что этот нейрон активирует, главным образом, в отношении текстуры меха. Проверка этой гипотезы показывает, что это в целом правильно. Обратите внимание на ложку с текстурой и цветом, достаточно похожим на шерсть собаки, чтобы активировать нейрон.
 </p>
 
 <figure class="base-grid">
   <div style="grid-column: text;">
     <img src="images/diversity/mixed4a_143_diversity.png" />
     <figcaption>
-      Optimization with diversity. <i>Layer mixed4a, Unit 143</i>
+      Оптимизация с разнообразием <i>Слой mixed4a, объект 143</i>
     </figcaption>
   </div>
   <div style="grid-column: gutter;">
     <img style="max-width: 147px;"src="images/diversity/mixed4a_143_examples.jpg" />
-    <figcaption>Dataset examples</figcaption>
+    <figcaption>Примеры датасета</figcaption>
   </div>
 </figure>
 
 <p>
-  The effect of diversity can be even more striking in higher level neurons, where it can show us different types of objects that stimulate a neuron.
-  For example, one neuron responds to different kinds of balls, even though they have a variety of appearances.
+  Эффект разнообразия может быть еще более впечатляющим в нейронах более высокого уровня, где он может показать нам различные типы объектов, стимулирующих нейрон.
+  Например, один нейрон реагирует на разные виды шаров, хотя они и сильно отличаются по виду.
 </p>
 
 <figure class="grid l-page" style="grid-template-columns: repeat(6, 1fr)">
   <div style="">
     <img style="max-width: 147px;" src="images/diversity/mixed5a_9_optimized.png" />
-    <figcaption>Simple Optimization</figcaption>
+    <figcaption>Простая оптимизация</figcaption>
   </div>
   <div style="grid-column-end: span 4">
     <img src="images/diversity/mixed5a_9_diversity.png" />
-    <figcaption>Optimization with diversity reveals multiple types of balls. <i>Layer mixed5a, Unit 9</i></figcaption>
+    <figcaption>Оптимизация с разнообразием показывает различные типы шаров. <i>Слой mixed5a, объект 9</i></figcaption>
   </div>
   <div style="">
     <img style="max-width: 147px;"src="images/diversity/mixed5a_9_examples.jpg" />
-    <figcaption>Dataset examples</figcaption>
+    <figcaption>Примеры датасета</figcaption>
   </div>
 </figure>
 
 <p>
-  This simpler approach has a number of shortcomings:
-  For one, the pressure to make examples different can cause unrelated artifacts (such as eyes) to appear.
-  Additionally, the optimization may make examples be different in an unnatural way.
-  For example, in the above example one might want to see examples of soccer balls clearly separated from other types of balls like golf or tennis balls.
-  Dataset based approaches such as <d-cite key="mneuron2015">Wei <i>et al.</i></d-cite> can split features apart more naturally -- however they may not be as helpful in understanding how the model will behave on different data.
+  Этот более простой подход имеет ряд недостатков:
+  Во-первых, давление, влияющие на различие примеров, может привести к появлению не связанных между собой артефактов (таких как глаза).
+  Кроме того, оптимизация может привести к тому, что примеры будут отличаться неестественным образом.
+  Например, в приведенном выше примере можно было бы увидеть примеры футбольных мячей, отделенных от других видов мячей, таких как гольф или теннисные мячи.
+  Подходы, учитывающие весь датасет, как <d-cite key="mneuron2015">Вей <i>и др.</i></d-cite> могут разделять признаки более естественным путем -- однако, они могут быть не настолько полезными для понимания поведения модели на различных входных данных.
 </p>
 
 <p>
-  Diversity also starts to brush on a more fundamental issue: while the examples above represent a mostly coherent idea, there are also neurons that represent strange mixtures of ideas.
-  Below, a neuron to responds to two types of animal faces, and also to car bodies.
+  Разнообразие также начинает вызывать более фундаментальную проблему: в то время как приведенные выше примеры представляют собой в основном согласованную идею, существуют также нейроны, представляющие странные смеси идей.
+  Ниже, нейрон реагирует на два типа животных лиц, а также на кузовы.
 </p>
 
 <figure class="grid l-page" style="grid-template-columns: repeat(6, 1fr)">
   <div style="">
     <img style="max-width: 147px;" src="images/diversity/mixed4e_55_optimized.png" />
-    <figcaption>Simple Optimization</figcaption>
+    <figcaption>Простая оптимизация</figcaption>
   </div>
   <div style="grid-column-end: span 4">
     <img src="images/diversity/mixed4e_55_diversity.png" />
-    <figcaption>Optimization with diversity show cats, foxes, but also cars. <i>Layer mixed4e, Unit 55</i></figcaption>
+    <figcaption>Оптимизация с учетом разнообразия показывает кошек, лис, а еще... машины. <i>Слой mixed4e, объект 55</i></figcaption>
   </div>
   <div style="">
     <img style="max-width: 147px;"src="images/diversity/mixed4e_55_examples.jpg" />
-    <figcaption>Dataset examples</figcaption>
+    <figcaption>Примеры датасета</figcaption>
   </div>
 </figure>
 
 <p>
-  Examples like these suggest that neurons are not necessarily the right semantic units for understanding neural nets.
+  Примеры, подобные этим, предполагают, что нейроны не обязательно являются правильными семантическими единицами для понимания нейронных сетей.
 </p>
 
 <!-- =================================================== -->
 <hr/>
-<h2 id="interaction">Interaction between Neurons</h2>
+<h2 id="interaction">Взаимодействия между нейронами</h2>
 
 <p>
-  If neurons are not the right way to understand neural nets, what is?
-  In real life, combinations of neurons work together to represent images in neural networks. 
-  Individual neurons are the basis directions of activation space, and it is not clear that these should be any more special than any other direction.
+  Если нейроны не подходят для понимания нейронных сетей, то что подходит?
+  В реальной жизни комбинации нейронов работают вместе, чтобы представлять изображения в нейронных сетях.
+  Индивидуальные нейроны являются базовыми направлениями пространства активации, и неясно, что они должны быть более особенными, чем любое другое направление.
 </p>
 
 <p>
-  <d-cite key="szegedy2013intriguing">Szegedy <i>et al.</i></d-cite> found that random directions seem just as meaningful as the basis directions.
-  More recently <d-cite key="netdissect2017">Bau, Zhou <i>et al.</i></d-cite> found basis directions to be interpretable more often than random directions.
-  Our experience is broadly consistent with both results; we find that random directions often seem interpretable, but at a lower rate than basis directions.
+  <d-cite key="szegedy2013intriguing">Szegedy <i>и др.</i></d-cite> обнаружили, что случайные направления кажутся столь же значимыми, как и основные направления.
+  Совсем недавно <d-cite key="netdissect2017">Бау, Чжоу <i>и др.</i></d-cite> обнаружили, что базисные направления интерпретируются чаще, чем случайные.
+  Наш опыт в целом согласуется с обоими результатами: мы обнаруживаем, что случайные направления часто кажутся интерпретируемыми, но более низкими, чем базисные.
 </p>
 
 <figure class="base-grid" >
   <figcaption style="grid-column: kicker;">
-    Dataset examples and optimized examples of <strong>random directions</strong> in activation space. The directions shown here were hand-picked for interpretability.
+    Примеры набора данных и оптимизированные примеры <strong>случайных направлений</strong>
+    в пространстве активации. Указанные здесь направления были отобраны для интерпретируемости.
   </figcaption>
   <d-figure style="grid-column: text-start / page-end;" id="random-optimization-and-examples"></d-figure>
 </figure>
 
-<p>  
-  We can also define interesting directions in activation space by doing arithmetic on neurons.
-  For example, if we add a "black and white" neuron to a "mosaic" neuron, we obtain a black and white version of the mosaic.
-  This is reminiscent of semantic arithmetic of word embeddings as seen in Word2Vec or generative models' latent spaces.
+<p>
+  Мы также можем определить интересные направления в пространстве активации, выполнив арифметику на нейронах.
+  Например, если мы добавим «черно-белый» нейрон к «мозаичному» нейрону, мы получим черно-белую версию мозаики.
+  Это напоминает семантическую арифметику словесных вложений, как видно из скрытых пространств Word2Vec или генеративных моделей.
 </p>
 
 <figure class="base-grid shaded-figure">
   <figcaption style="grid-column: kicker;">
-    By jointly optimizing two neurons we can get a sense of how they interact.
+    Совместно оптимизируя два нейрона можно получить представление об их взаимодействии.
   </figcaption>
   <d-figure style="grid-column: text-start / screen-end; overflow: visible; contain: unset;" id="linear-combinations"></d-figure>
 </figure>
 
 <p>
-  These examples show us how neurons jointly represent images.
-  To better understand how neurons interact, we can also interpolate between them. 
-  <d-footnote>The optimization objective is a linear interpolation between the individual channel objectives. To get the interpolations to look better, we also add a small alignment objective that encourages lower layer activations to be similar. We additionally use a combination of separate and shared image parameterizations to make it easier for the optimization algorithm to cause objects to line up, while still giving it the freedom to create any image it needs to.</d-footnote>
-  This is similar to interpolating in the latent space of generative models. 
+  Эти примеры показывают нам, как нейроны совместно представляют изображения.
+  Для лучшего понимания, мы также можем использовать интерполяцию.
+  <d-footnote>Цель оптимизации - линейная интерполяция между целями отдельных каналов. Чтобы получить более приятную на глаз интерполяцию, мы также добавляем небольшое слагаемое выравнивания, которое поощряет активацию более низких уровней. Кроме того, мы используем комбинацию отдельных и разделяемых параметров изображения, чтобы упростить алгоритм оптимизации, чтобы объекты выстраивались в линию, при этом предоставляя им свободу для создания любого изображения, в котором он нуждается.</d-footnote>
+  Это похоже на интерполяцию в скрытом пространстве генерирующих моделей.
 </p>
 
 <figure class="base-grid shaded-figure">
@@ -521,99 +518,99 @@
 </figure>
 
 <p>
-  This is only starting to scratch the surface of how neurons interact. 
-  The truth is that we have almost no clue how to select meaningful directions, or whether there even exist particularly meaningful directions.
-  Independent of finding directions, there are also questions on how directions interact--for example, interpolation can show us how a small number of directions interact, but in reality there are hundreds of directions interacting.
+  Это простейшие примеры взаимодействия нейронов.
+  Истина заключается в том, что мы почти не знаем, как выбрать значимые направления или существуют даже особо значимые направления.
+  Независимо от нахождения направлений, есть также вопросы о том, как они взаимодействуют -- например, интерполяция может показать нам, как взаимодействует небольшое число направлений, но на самом деле существует сотни взаимодействующих направлений.
 </p>
 
 
 <!-- =================================================== -->
 <hr/>
-<h2 id="enemy-of-feature-vis">The Enemy of Feature Visualization</h2>
+<h2 id="enemy-of-feature-vis">Враг визуализации признаков</h2>
 
 <p>
-  If you want to visualize features, you might just optimize an image to make neurons fire.
-  Unfortunately, this doesn't really work.
-  Instead, you end up with a kind of neural network optical illusion
-  -- an image full of noise and nonsensical high-frequency patterns that the network responds strongly to.
+  Если вы хотите визуализировать признаки, вы можете просто оптимизировать изображение, чтобы "зажигать" нейроны.
+  К сожалению, это не работает.
+  Вместо этого вы оказываетесь в виде оптической иллюзии нейронной сети -- изображение, полное шума и бессмысленных высокочастотных паттернов, на которые сильно реагирует сеть.
 </p>
 
 <figure class="shaded-figure base-grid">
   <figcaption style="grid-column: kicker;">
-    <p>Even if you carefully tune learning rate, you'll get noise.</p><br />
-    <p>Optimization results are enlarged to show detail and artifacts.</p>
+    <p>Даже при хорошем подборе темпа обучения, вы получите шумы.</p><br />
+    <p>Результаты оптимизации увеличены для демонстрации деталей и артефактов.</p>
   </figcaption>
   <d-figure style="grid-column: text;" id="optimize-naive"></d-figure>
 </figure>
 
 <p>
-  These patterns seem to be the images kind of cheating, finding ways to activate neurons that don't occur in real life.
-  If you optimize long enough, you'll tend to see some of what the neuron genuinely detects as well,
-  but the image is dominated by these high frequency patterns.
-  These patterns seem to be closely related to the phenomenon of adversarial examples <d-cite key="szegedy2013intriguing"></d-cite>.
+  Эти образцы, по-видимому, являются "обманками", они находят способы активировать нейроны, так, как это не происходит в реальной жизни.
+  Если вы будете оптимизировать достаточно долго, вы, как правило, увидите что-то из того, что нейрон действительно обнаруживает, но изображение полностью "затеняется" этими высокочастотными шаблонами.
+  Эти шаблоны кажутся сильно связанными с феноменом негативных примеров <d-cite key="szegedy2013intriguing"></d-cite>.
 </p>
 
 <p>
-  We don't fully understand why these high frequency patterns form,
-  but an important part seems to be strided convolutions and pooling operations, which create high-frequency patterns in the gradient <d-cite key="odena2016deconvolution"></d-cite>.
+  Мы не совсем понимаем, почему формируются эти высокочастотные шаблоны,
+  но важной частью, по-видимому, являются чередующиеся свертки и пулинги, которые создают высокочастотные структуры в градиенте <d-cite key="odena2016deconvolution"></d-cite>.
 </p>
 
-<figcaption>Each <b>strided convolution or pooling</b> creates checkerboard patterns in the gradient magnitudes when we backprop through it. <dt-cite key="odena2016deconvolution"></dt-cite></figcaption>
+<figcaption>Каждая <b>свертка и пулиг</b> создает "эффект шахматной доски" в градиенте, когда мы распространяем через него ошибку. <dt-cite key="odena2016deconvolution"></dt-cite></figcaption>
 <figure style="grid-column: page;">
   <d-figure id="frequency-artifacts"></d-figure>
 </figure>
 
 
 <p>
-  These high-frequency patterns show us that, while optimization based visualization's freedom from constraints is appealing, it's a double-edged sword.
-  Without any constraints on images, we end up with adversarial examples.
-  These are certainly interesting, but if we want to understand how these models work in real life, we need to somehow move past them...
+  Эти высокочастотные шаблоны показывают нам, что, хотя дарованная оптимизационным подходом свобода от ограничений привлекательна, это обоюдоострый меч.
+  Без каких-либо ограничений на изображения мы заканчиваем спорными примерами.
+  Это, конечно, интересно, но если мы хотим понять, как эти модели работают в реальной жизни, нам нужно как-то обойти это...
 </p>
 
-<h3 id="regularization">The Spectrum of Regularization</h3>
+<h3 id="regularization">Спектры регуляризации</h3>
 
 <p>
-  Dealing with these high frequency noise has been one of the primary challenges and overarching threads of feature visualization research.
-  If you want to get useful visualizations, you need to impose a more natural structure using some kind of prior, regularizer, or constraint.
-</p>
-
-<p>
-  In fact, if you look at most notable papers on feature visualization, one of their main points will usually be an approach to regularization.
-  Researchers have tried a lot of different things!
+  Работа с этими высокочастотными шумами была одной из основных задач визуализации объектов.
+  Если вы хотите получить полезную визуализацию, вам нужно наложить более естественную структуру, используя какой-то регуляризатор или ограничение.
 </p>
 
 <p>
-  We can think of all of these approaches as living on a spectrum, based on how strongly they regularize the model.
-  On one extreme, if we don't regularize at all, we end up with adversarial examples.
-  On the opposite end, we search over examples in our dataset and run into all the limitations we discussed earlier.
-  And in the middle we have three main families of regularization options.
+  Фактически, если вы посмотрите на наиболее заметные документы по визуализации функций, одним из их основных пунктов будет, как правило, подход к регуляризации.
+  Исследователи пробовали много разных вещей!
+</p>
+
+<p>
+  Мы можем думать обо всех этих подходах как о жизни в спектре, исходя из того, насколько сильно они регуляризируют модель.
+  С одной стороны, если мы вообще не будем использовать регуляризацию, мы сталкиваемся с негативными примерами.
+  С другой, при использовании только примеров из датасета мы сталкиваемся со всеми ограничениями, которые мы обсуждали ранее.
+  А в середине у нас есть три основных семейства вариантов регуляризации.
 </p>
 
 <%= require('raw-loader!./diagrams/RegReviewRendered.txt') %>
 <!-- <d-figure id="feature-vis-history"></d-figure> -->
 
-<h3 id="regularization-families">Three Families of Regularization</h3>
+<h3 id="regularization-families"> Три типа регуляризации</h3>
 
 <p>
-  Let's consider these three intermediate categories of regularization in more depth.
+  Рассмотрим эти три промежуточные категории регуляризации более подробно.
 </p>
 
 <p>
-  <b>Frequency penalization</b> directly targets the high frequency noise these methods suffer from.
-  It may explicitly penalize variance between neighboring pixels (total variation) <d-cite key="mahendran2015understanding"></d-cite>, or implicitly penalize high-frequency noise by blurring the image each optimization step <d-cite key="nguyen2015deep"></d-cite>.<d-footnote>
-    If we think about blurring in Fourier space, it is equivalent to adding a scaled L2 penalty to the objective, penalizing each Fourier-component based on its frequency.</d-footnote>
-  Unfortunately, these approaches also discourage legitimate high-frequency features like edges along with noise.
-  This can be slightly improved by using a bilateral filter, which preserves edges, instead of blurring <d-cite key="tyka2016bilateral"></d-cite>.
+  <b>Частотный штраф</b> directly targets the high frequency noise these methods suffer from.
+  непосредственно направлен на высокочастотный шум, от которого страдают эти методы.
+   Он может явно наказывать дисперсию между соседними пикселями (суммарную вариацию) <d-cite key="mahendran2015understanding"></d-cite>, или неявно наказывать высокочастотный шум за счет размытия изображения на каждом этапе оптимизации <d-cite key="nguyen2015deep"></d-cite>.<d-footnote>
+    Если рассуждать о размытии в пространстве Фурье, то это эквивалентно добавлению масштабированного штрафа L2 к цели, что штрафует каждый компонент Фурье на основе его частоты.
+  </d-footnote>
+  К сожалению, эти подходы также препятствуют законным высокочастотным функциям, таким как края и шум.
+  Это можно немного улучшить, используя двусторонний фильтр, который сохраняет края, а не размытие <d-cite key="tyka2016bilateral"></d-cite>.
 </p>
 
 <p>
-  (Some work uses similar techniques to reduce high frequencies in the gradient before they accumulate in the visualization <d-cite key="oygard2015vis,mordvintsev2016deepdreaming"></d-cite>.
-  These techniques are in some ways very similar to the above and in some ways radically different -- we'll examine them in the next section, <a href="#preconditioning">Preconditioning and Parameterization</a>.)
+  (В некоторых работах используются аналогичные методы для снижения высоких частот в градиенте, прежде чем они накапливаются при визуализации <d-cite key="oygard2015vis,mordvintsev2016deepdreaming"></d-cite>.
+  Эти методы в некотором смысле очень похожи на вышеизложенное и в некотором роде радикально отличаются - мы рассмотрим их в следующем разделе, <a href="#preconditioning">Предобуславливание и Параметризация</a>.)
 </p>
 
 <figure class="shaded-figure base-grid">
   <figcaption style="grid-column: kicker;">
-    <p>Frequency penalization directly targets high frequency noise</p>
+    <p>Частотная регуляризация напрямую направлена на высокочастотный шум</p>
   </figcaption>
   <d-figure style="grid-column: text;" id="regularizer-playground-freq"></d-figure>
 </figure>
@@ -625,10 +622,10 @@
 
 
 <p>
-  <b>Transformation robustness</b> tries to find examples that still activate the optimization target highly even if we slightly transform them.
-  Even a small amount seems to be very effective in the case of images <d-cite key="mordvintsev2015inceptionism"></d-cite>, 
-  especially when combined with a more general regularizer for high-frequencies <d-cite key="oygard2015vis,mordvintsev2016deepdreaming"></d-cite>.
-  Concretely, this means that we stochastically jitter, rotate or scale the image before applying the optimization step.
+  <b>Устойчивость к изменениям</b> пытается найти примеры, которые все еще активируют целевую задачу оптимизации, даже если мы слегка их преобразуем.
+  Даже небольшое количество кажется очень эффективным в случае изображений <d-cite key="mordvintsev2015inceptionism"></d-cite>, 
+  особенно в сочетании с более общим регуляризатором для высоких частот <d-cite key="oygard2015vis,mordvintsev2016deepdreaming"></d-cite>.
+  Конкретно это означает, что мы стохастически поворачиваем или масштабируем изображение перед применением этапа оптимизации.
 </p>
 
 
@@ -636,7 +633,7 @@
 
 <figure class="shaded-figure base-grid">
   <figcaption style="grid-column: kicker;">
-    <p>Stochastically transforming the image before applying the optimization step suppresses noise</p>
+    <p>Стохастическое преобразование изображения перед применением этапа оптимизации подавляет шум</p>
   </figcaption>
   <d-figure style="grid-column: text;" id="regularizer-playground-robust"></d-figure>
 </figure>
@@ -646,21 +643,19 @@
 <!-- technically most challenging -->
 
 <p>
-  <b id="learned-priors">Learned priors.</b>
-  Our previous regularizers use very simple heuristics to keep examples reasonable.
-  A natural next step is to actually learn a model of the real data and try to enforce that.
-  With a strong model, this becomes similar to searching over the dataset.
-  This approach produces the most photorealistic visualizations, but it may be unclear what came from the model being visualized and what came from the prior.
+  <b id="learned-priors">Изученных предпосылки.</b>
+  Наши предыдущие регуляризаторы используют очень простые эвристики, чтобы держать примеры разумными.
+  Естественным следующим шагом является выучить модели реальных данных и попытаться обеспечить ее соблюдение.
+  С сильной моделью это похоже на поиск по набору данных.
+  Этот подход дает большинство фотореалистичных визуализаций, но может быть неясно, что из результатов пришло из модели, а что из предпосылок.
 </p>
 
 <p>
-  One approach is to learn a generator that maps points in a latent space to examples of your data,
-  such as a GAN or VAE,
-  and optimize within that latent space <d-cite key="nguyen2016synthesizing"></d-cite>. 
-  An alternative approach is to learn a prior that gives you access to the gradient of probability;
-  this allows you to jointly optimize for the prior along with your objective <d-cite key="nguyen2016plug,mordvintsev2015inceptionism"></d-cite>.
-  When one optimizes for the prior and the probability of a class, one recovers a generative model of the data conditioned on that particular class.
-  Finally, <d-cite key="mneuron2015">Wei <i>et al.</i></d-cite> approximate a generative model prior, at least for the color distribution, by penalizing distance between patches of the output and the nearest patches retrieved from a database of image patches collected from the training data. 
+  Один из подходов состоит в том, чтобы изучить генератор, который отображает точки в скрытом пространстве на примеры ваших данных, таких как GAN или VAE, и оптимизировать в этом скрытом пространстве <d-cite key="nguyen2016synthesizing"></d-cite>.
+  Альтернативный подход состоит в том, чтобы изучить пердпосылки, что позволяет работать с градиентом вероятности; это позволяет одновременно оптимизировать предпосылки
+  вместе с вашей функцией <d-cite key="nguyen2016plug,mordvintsev2015inceptionism"></d-cite>.
+  Когда кто-то оптимизирует предпосылки и вероятность класса, восстанавливается генеративная модель данных, обусловленная этим конкретным классом.
+  Наконец, <d-cite key="mneuron2015">Вей <i>и др.</i></d-cite> приблизили генеративную модель, по крайней мере, для распределения цветов, штрафуя за расстояние между патчами вывода и ближайшими патчами, полученными из базы данных патчей изображений, собранных из датасета.
 </p>
 
 
@@ -668,160 +663,159 @@
 
 <!-- =================================================== -->
 <hr/>
-<h2 id="preconditioning">Preconditioning and Parameterization</h2>
+<h2 id="preconditioning">Предобуславливание и параметризация</h2>
 
 <br>
 
 <p>
-  In the previous section, we saw a few methods <d-cite key="oygard2015vis,mordvintsev2016deepdreaming"></d-cite> that reduced high frequencies <i>in the gradient</i> rather than the visualization itself.
-  It's not clear this is really a regularizer:
-  it resists high frequencies, but still allows them to form when the gradient consistently pushes for it.
-  If it isn't a regularizer, what does transforming the gradient like this do?
+  В предыдущей секции, мы рассмотрели несколько методов <d-cite key="oygard2015vis,mordvintsev2016deepdreaming"></d-cite> уменьшающих долю высоких частот <i>в градиенте</i>, а не в самой визуализации.
+  Непонятно, действительно ли это регуляризатор: он сопротивляется высоким частотам,
+  но все же позволяет им формироваться, когда градиент последовательно заставляет его.
+  Если это не регуляризатор, что же это за преобразование градиента?
 </p>
 
 <p>
-  Transforming the gradient like this is actually quite a powerful tool -- it's called "preconditioning" in optimization.
-  You can think of it as doing steepest descent to optimize the same objective, 
-  but in another parameterization of the space or under a different notion of distance.
+  Преобразование такого градиента на самом деле является довольно мощным инструментом - он называется «предобуславливание» в оптимизации.
+  Вы можете думать об этом как о методе наискорейшего спуска, чтобы оптимизировать одну и ту же цель,
+  но в другой параметризации пространства или при другом понимании расстояния.
   <d-footnote>
-    Gradient blurring<d-cite key="oygard2015vis"></d-cite> is equivalent to gradient descent in a different parameterization of image space, where high frequency dimensions are stretched to make moving in those directions slower. Gradient Laplacian Pyramid normalization <d-cite key="mordvintsev2016deepdreaming"></d-cite> is a kind of adaptive learning rate approach in the same space.
+    Размытие градиента<d-cite key="oygard2015vis"></d-cite> эквивалентно градиентному спуску при другой параметризации пространства изображений, где высокочастотные размеры растянуты, чтобы движение в этих направлениях было медленнее. Нормализация лапласианской пирамиды градиента <d-cite key="mordvintsev2016deepdreaming"></d-cite> является своего рода адаптивным способом обучения в одном и том же пространстве.
   </d-footnote>
-  This changes which direction of descent will be steepest, and how fast the optimization moves in each direction, but it does not change what the minimums are.
-  If there are many local minima, it can stretch and shrink their basins of attraction, changing which ones the optimization process falls into.
-  As a result, using the right preconditioner can make an optimization problem radically easier.
+  Это изменит направление спуска будет самым крутым, и как быстро оптимизация движется в каждом направлении, но это не изменяет минимальные значения.
+  Если есть много локальных минимумов, их области могут могут растягиваться, изменяя, в какой из них сойдется процесс оптимизации.
+   В результате использование правильного предусловителя может значительно упростить задачу оптимизации.
 </p>
 <p>
-  How can we choose a preconditioner that will give us these benefits?
-  A good first guess is one that makes your data decorrelated and whitened.
-  In the case of images this means doing gradient descent in the Fourier basis,
+  Как мы можем выбрать предобуславливатель, который даст нам эти преимущества?
+  Хорошая догадка -- это то, что делает ваши данные декоррелированными и "выбеленными".
+  В случае изображений это означает выполнение градиентного спуска в базисе Фурье,
   <d-footnote>
-    This points to a profound fact about the Fourier transform.
-    As long as a correlation is consistent across spatial positions -- such as the correlation between a pixel and its left neighbor being the same across all positions of an image -- the Fourier coefficients will be independent variables.
-    To see this, note that such a spatially consistent correlation can be expressed as a convolution, and by the convolution theorem becomes pointwise multiplication after the Fourier transform.
+    Это указывает на глубокий факт преобразования Фурье.
+    Пока корреляция согласована между пространственными позициями, такими как корреляция между пикселем и его левым соседом, одинакова во всех позициях изображения, коэффициенты Фурье будут независимыми переменными.
+    Для этого заметим, что такая пространственно-согласованная корреляция может быть выражена как свертка, а по теореме свертки становится точечным умножением после преобразования Фурье.
   </d-footnote>
-  with frequencies scaled so that they all have equal energy.
+  с частотами, масштабированными так, чтобы они имели равную энергию.
   <d-footnote>
-      Note that we have to be careful to get the colors to be decorrelated, too. The Fourier transforms decorrelates spatially, but a correlation will still exist between colors.
-      To address this, we explicitly measure the correlation between colors in the training set and use a Cholesky decomposition to decorrelate them. Compare the directions of steepest decent before and after decorrelating colors:
+      Обратите внимание, что мы должны быть осторожны, чтобы цвета были также декорированы. Преобразования Фурье декорируют пространственно, но корреляция будет по-прежнему существовать между цветами.
+      Чтобы решить эту проблему, мы явно измеряем корреляцию между цветами в датасете и используем разложение Холески для их декорреляции. Сравните направления наискорейшего спуска до и после декоративных цветов:
+      
       <br />
       <span style="display: block; padding-top: 1em;">
         <span style="display: inline-block;">
           <img style="height: 112px; width: 112px; display: block;" src="images/correlated_colors.jpeg"/>
           <span class="figcaption">
-            Correlated Colors
+            Скоррелированные цвета
           </span>
         </span>
         <span style="display: inline-block;">
           <img style="height: 112px; width: 112px; display: block;" src="images/decorrelated_colors.jpeg"/>    
           <span class="figcaption">
-            Decorrelated Colors
+            Нескоррелированные цвета
           </span>  
         </span>
       </span>
   </d-footnote>
 </p>
 <p>
-  Let's see how using different measures of distance changes the direction of steepest descent. 
-  The regular L<sup>2</sup> gradient can be quite different from the directions of steepest descent in the L<sup>∞</sup> metric or in the decorrelated space:
+  Давайте посмотрим, как использование разных мер расстояния изменяет направление наискорейшего спуска.
+  Обычный L<sup>2</sup> градиент может сильно отличаться от направления градиента наискорейшего спуска в L<sup>∞</sup> метрике декоррелированного пространства:
 </p>
 
 <figure class="shaded-figure base-grid">
   <figcaption style="grid-column: kicker">
-    Three directions of steepest descent under different notions of distance
+    Три направления наискорейшего спуска под разными понятиями расстояния
   </figcaption>
   <d-figure style="grid-column: text-start / screen-end;" id="steepest-descent"></d-figure>
 </figure>
 
 <p>
-  All of these directions are valid descent directions for the same objective,
-  but we can see they're radically different.
-  Notice that optimizing in the decorrelated space reduces high frequencies,
-  while using L<sup>∞</sup> increases them. 
+  Все эти направления являются возможными направлениями спуска для одной и той же функции,
+  но мы видим, что они радикально отличаются друг от друга.
+  Обратите внимание, что оптимизация в декоррелированном пространстве уменьшает высокие частоты, в то время как L <sup>∞</sup> увеличивает их.
 </p>
 
 <p>
-  Using the decorrelated descent direction results in quite different visualizations.
-  It's hard to do really fair comparisons because of hyperparameters, but the
-  resulting visualizations seem a lot better -- and develop faster, too.
+  Использование декоррелированного направления спуска приводит к совершенно иной визуализации.
+  Трудно делать действительно честные сравнения из-за гиперпараметров, но
+  полученные визуализации кажутся намного лучше - и развиваются быстрее.
 </p>
 
 <figure class="shaded-figure base-grid">
   <figcaption style="grid-column: kicker;">
-    <p>Combining the preconditioning and transformation robustness improves quality even further</p>
+    <p>Сочетание устойчивости к предобуславливанию и трансформации улучшает качество еще больше</p>
   </figcaption>
   <d-figure style="grid-column: text;" id="opt-explore2"></d-figure>
 </figure>
 
 <p>
-  (Unless otherwise noted, the images in this article were optimizing in the decorrelated space and a suite of transformation robustness techniques.
+  (Если не указано иное, изображения в этой статье были оптимизированы в декоррелированном пространстве и набором устойчивых к преобразованиям методов.
   <d-footnote>
-    Images were optimized for 2560 steps in a color-decorrelated fourier-transformed space, using Adam at a learning rate of 0.05.
-    We used each of following transformations in the given order at each step of the optimization:<br /><br />
-    • Padding the input by 16 pixels to avoid edge artifacts<br />
-    • Jittering by up to 16 pixels<br />
-    • Scaling by a factor randomly selected from this list: 1, 0.975, 1.025, 0.95, 1.05<br />
-    • Rotating by an angle randomly selected from this list; in degrees: -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5<br />
-    • Jittering a second time by up to 8 pixels<br />
-    • Cropping the padding<br />
+    Изображения были оптимизированы для 2560 шагов в цвето-декоррелированном фурье пространстве, используя Адам-оптимизатор со скоростью обучения 0,05.
+    Мы использовали каждое из следующих преобразований в данном порядке на каждом шаге оптимизации:<br /><br />
+    • Создание отступа от границ на 16 пикселей, чтобы избежать краевых артефактов <br />
+    • Дрожание до 16 пикселей <br />
+    • Масштабирование со значением, случайным образом выбранным из этого списка: 1, 0,975, 1,025, 0,95, 1,05 <br />
+    • Вращение на случайный угол, выбранном из этого списка; в градусах: -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5 <br />
+    • Дрожание во второй раз до 8 пикселей <br />
+    • Обрезка отступов <br />
   </d-footnote>)
 </p>
 
 <p>
-  Is the preconditioner merely accelerating descent, bringing us to the same place
-  normal gradient descent would have brought us if we were patient enough?
-  Or is it also regularizing, changing which local minima we get attracted to?
-  It's hard to tell for sure.
-  On the one hand, gradient descent seems to continue improving as you exponentially increase the number of optimization steps -- it hasn't converged, it's just moving very slowly.
-  On the other hand, if you turn off all other regularizers, the preconditioner seems to reduce high-frequency patterns.
+  Является ли предобуславливание просто ускорением спуска, приводящим нас к тому же минимуму, что и обычный градиентный спуск?
+  Или это также регуляризатор, изменяющий, приоритеты локальных минимумов?
+  Трудно сказать точно.
+  С одной стороны, градиентный спуск, похоже, продолжает улучшаться, поскольку, если вы экспоненциально увеличиваете количество шагов оптимизации - он не сходится, он просто движется очень медленно.
+  С другой стороны, если вы отключите все другие регуляризаторы, предобуславливание, похоже, уменьшит частотные характеристики.
 </p>
 
 <!-- =================================================== -->
 <hr/>
-<h2 id="conclusion">Conclusion</h2>
+<h2 id="conclusion">Заключение</h2>
   
 <p class="">
-  Neural feature visualization has made great progress over the last few years.
-  As a community, we've developed principled ways to create compelling visualizations. 
-  We've mapped out a number of important challenges and found ways of a addressing them.
+  Визуализация нейронных признаков достигла больших успехов за последние несколько лет.
+  Как сообщество, мы разработали принципиальные способы создания наглядных визуализаций.
+  Мы наметили ряд важных проблем и нашли способы их решения.
 </p>
 
 <p class="">
-  In the quest to make neural networks interpretable, feature visualization
-  stands out as one of the most promising and developed research directions.
-  By itself, feature visualization will never give a completely satisfactory
-  understanding. We see it as one of the fundamental building blocks that,
-  combined with additional tools, will empower humans to understand these systems.
+  В стремлении сделать нейронные сети интерпретируемыми, визуализация признаков
+  выделяется как одно из наиболее перспективных и развитых направлений исследований.
+  Сама по себе визуализация признаков никогда не даст полностью удовлетворительного
+  понимания. Мы рассматриваем его как один из фундаментальных строительных блоков, который
+  в сочетании с дополнительными инструментами, позволит людям понять эти системы.
 </p>
 
 <p>
-  There remains still a lot of important work to be done in improving feature visualization.
-  Some issues that stand out include understanding neuron interaction, finding which units are most meaningful for understanding neural net activations, and giving a holistic view of the facets of a feature.
+  Остается еще много важной работы по улучшению визуализации функций.
+  Среди них выделяются: понимание взаимодействия нейронов, определение того, какие единицы являются наиболее значимыми для понимания активации нейронной сети, и достижение целостного взгляда на грани признаков.
 </p>
 
 <p>
-  In the meantime, curious readers are invited to explore <a href="appendix/">visualizations of all GoogLeNet channels</a>.
+  Тем временем, любопытным читателям предлагается изучить <a href="appendix/"> визуализацию всех каналов GoogLeNet </a>.
 </p>
 
 </d-article>
 
 <d-appendix>
-  <h3 id="acknowledgements">Acknowledgments</h3>
+  <h3 id="acknowledgements">Благодарности</h3>
   <p>
-    We are extremely grateful to Shan Carter and Ian Goodfellow.
-    Shan gave thoughtful feedback, especially on the design of the article.
-    Ian generously stepped in to handle the review process of this article -- we would not have been able to publish it without him.
+    Мы чрезвычайно благодарны Шан Картеру и Яну Гудфеллоу.
+    Шань вдумчиво отзывался, особенно о дизайне статьи.
+    Ян благородно вызвался сделать ревью этой статьи - мы бы не смогли опубликовать ее без него.
   </p>
   
   <p>
-    We're also grateful for the comments, thoughts and support of
-    Arvind Satyanarayan, Ian Johnson,
-    Greg Corrado, Blaise Aguera y Arcas,
-    Katherine Ye, Michael Nielsen, Emma Pierson, Dario Amodei, 
-    Mike Tyka,
-    Andrea Vedaldi, Ruth Fong, Jason Freidenfelds,
-    Geoffrey Hinton,
-    Timon Ruban, 
-    Been Kim, Martin Wattenberg, and Fernanda Viegas.
+    Мы также благодарны за комментарии, мысли и поддержку
+    Арвинд Сатьянараян, Ян Джонсон,
+    Грег Коррадо, Блейз Агуера и Аркас,
+    Кэтрин Е., Майкл Нильсен, Эмма Пирсон, Дарио Амодей,
+    Майк Тыка,
+    Андреа Ведалди, Рут Фонг, Джейсон Фрейденфельдс,
+    Джеффри Хинтон,
+    Тимон Рубан,
+    Были Ким, Мартин Ваттенберг и Фернанда Вигас.
   </p>
   
   <p>

@@ -80,6 +80,10 @@ d-fn {
   color: orange;
 }
 
+translate-original {
+  font-weight: bold;
+}
+
 d-slider {
   width: 100%;
 }
